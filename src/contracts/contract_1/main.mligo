@@ -8,7 +8,7 @@ type action =
 	| RemoveAdmin of Parameter.remove_admin_param
 	| PayContractFees of Parameter.pay_contract_fees_param
 	| CreateCollection of Parameter.create_collection_param
-	// | BanCreator of Parameter.ban_creator_param
+	| BanCreator of Parameter.ban_creator_param
 	| Reset of unit
 
 type return = operation list * Storage.t
@@ -68,17 +68,20 @@ let remove_admin(remove_admin_param, store: Parameter.remove_admin_param * Stora
 
 
 // Admin functions
-// let ban_creator(ban_creator_param, store: Parameter.ban_creator_param * Storage.t) : Storage.t = 
-// 	let sender:address = Tezos.get_sender() in
-// 	let creator_blacklist : Storage.blacklist_mapping list = 
-// 		if(List.mem ban_creator_param store.creator_blacklist) then
-// 			failwith Errors.already_blacklisted
-// 		else
-// 			ban_creator_param :: store.creator_blacklist
-// 		in
-// 	{ store with creator_blacklist }
+let ban_creator(ban_creator_param, store: Parameter.ban_creator_param * Storage.t) : Storage.t = 
+	let sender:address = Tezos.get_sender() in
+	let creator_blacklist : Storage.blacklist_mapping list = 
+		if(List.mem ban_creator_param store.creator_blacklist) then
+			failwith Errors.already_blacklisted
+		else
+			ban_creator_param :: store.creator_blacklist
+		in
+	{ store with creator_blacklist }
+
 
 // Contract functions
+
+// Function to pay the contract fees and get access to whitelist
 let pay_contract_fees(_pay_contract_fees_param, store : Parameter.pay_contract_fees_param * Storage.t) : Storage.t =
 	let amount : tez = Tezos.get_amount() in
 	let sender: address = Tezos.get_sender() in
@@ -91,7 +94,7 @@ let pay_contract_fees(_pay_contract_fees_param, store : Parameter.pay_contract_f
 	else
 		failwith Errors.wrong_fees_amount
 	store
-
+// Function to create a collection
 let create_collection(_create_collection_param, store : Parameter.create_collection_param * Storage.t) : Storage.t =
     let sender = Tezos.get_sender() in
 	let initial_storage: ext_storage = {
@@ -129,9 +132,9 @@ let main (action, store : action * Storage.t) : return =
 			let _ : unit = assert_access((), store) in	
 			let _ : unit = assert_blacklist((), store) in	
 			create_collection((), store)
-		// | BanCreator(user) ->
-		// 	let _ : unit = assert_admin((), store) in 
-		// 	ban_creator(user, store)
+		| BanCreator(user) ->
+			let _ : unit = assert_admin((), store) in 
+			ban_creator(user, store)
 		| Reset -> { store with creator_blacklist = []; admin_list = Map.empty; has_paid = Map.empty; collections = [] }
 		in
 	(([] : operation list), new_store)
